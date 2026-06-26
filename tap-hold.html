@@ -5,140 +5,124 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tap & Hold Button</title>
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-      :root {
-        --ring-width: 10px;
-        --ring-track: #e5e7eb;
-        --ring-progress: #22c55e;
-        --button-shadow: 0 18px 24px rgb(15 23 42 / 0.22);
-        --button-pressed-shadow: 0 8px 12px rgb(15 23 42 / 0.28);
-      }
-
-      #holdBtnContainer {
-        touch-action: none;
-        filter: drop-shadow(var(--button-shadow));
+      #logoImage {
         transition:
-          filter 160ms ease,
-          transform 160ms ease;
+          transform 150ms ease,
+          box-shadow 150ms ease;
       }
 
-      #holdBtnContainer.is-pressed {
-        filter: drop-shadow(var(--button-pressed-shadow));
-        transform: translateY(4px) scale(0.98);
+      #holdButton.is-pressed #logoImage {
+        transform: scale(0.94);
+        box-shadow: inset 0 8px 16px rgb(15 23 42 / 0.18);
       }
 
-      #holdBtn {
-        box-shadow:
-          inset 0 8px 14px rgb(255 255 255 / 0.45),
-          inset 0 -10px 18px rgb(15 23 42 / 0.18);
-      }
-
-      #progressBorder {
-        --progress: 0%;
-        background: conic-gradient(
-          from 0deg,
-          var(--ring-progress) 0 var(--progress),
-          var(--ring-track) var(--progress) 100%
-        );
+      #progressRing {
+        background: conic-gradient(from 0deg, #e5e7eb 0 100%);
         pointer-events: none;
         -webkit-mask: radial-gradient(
           farthest-side,
-          transparent calc(100% - var(--ring-width)),
-          #000 calc(100% - var(--ring-width))
+          transparent calc(100% - 10px),
+          #000 calc(100% - 10px)
         );
         mask: radial-gradient(
           farthest-side,
-          transparent calc(100% - var(--ring-width)),
-          #000 calc(100% - var(--ring-width))
+          transparent calc(100% - 10px),
+          #000 calc(100% - 10px)
         );
       }
     </style>
   </head>
-  <body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="text-center space-y-4">
+
+  <body class="flex min-h-screen items-center justify-center bg-gray-100">
+    <main class="space-y-4 text-center">
       <h1 class="text-2xl font-bold">Tap & Hold Demo</h1>
 
-      <div
-        id="holdBtnContainer"
-        class="relative w-64 h-64 mx-auto cursor-pointer"
+      <button
+        id="holdButton"
+        type="button"
+        class="relative mx-auto block h-64 w-64 cursor-pointer touch-none rounded-full border-0 bg-transparent p-[10px]"
       >
         <img
-          id="holdBtn"
+          id="logoImage"
           src="image/RupaliCash Logo.jpg"
           alt="Tap & Hold Button"
-          class="w-full h-full rounded-full object-cover"
+          class="relative z-10 h-full w-full rounded-full object-cover shadow-md"
+          draggable="false"
         />
-        <div id="progressBorder" class="absolute inset-0 rounded-full"></div>
-      </div>
+
+        <span
+          id="progressRing"
+          class="absolute inset-0 rounded-full"
+          aria-hidden="true"
+        ></span>
+      </button>
 
       <p id="status" class="text-gray-700">Hold for 3 seconds</p>
-    </div>
+    </main>
 
     <script>
-      const holdButton = document.getElementById("holdBtnContainer");
-      const progressRing = document.getElementById("progressBorder");
+      const holdButton = document.getElementById("holdButton");
+      const progressRing = document.getElementById("progressRing");
       const statusText = document.getElementById("status");
+
       const holdDuration = 3000;
-
-      let holdAnimationFrame;
+      let animationFrameId = null;
       let holdStartTime = 0;
-      let isHolding = false;
-      let isComplete = false;
-      let progressValue = 0;
 
-      function setProgress(value) {
-        progressValue = Math.min(Math.max(value, 0), 100);
-        progressRing.style.setProperty("--progress", `${progressValue}%`);
+      function drawProgress(percent) {
+        progressRing.style.background = `
+          conic-gradient(
+            from 0deg,
+            #22c55e 0% ${percent}%,
+            #e5e7eb ${percent}% 100%
+          )
+        `;
       }
 
       function startHold() {
-        if (isHolding) return;
+        if (animationFrameId) return;
 
-        cancelAnimationFrame(holdAnimationFrame);
-        isHolding = true;
-        isComplete = false;
         holdStartTime = performance.now();
-        setProgress(0);
+        statusText.textContent = "Holding...";
         holdButton.classList.add("is-pressed");
-        statusText.innerText = "Holding...";
+        drawProgress(0);
 
-        function animateHold(now) {
-          const elapsed = now - holdStartTime;
-          setProgress((elapsed / holdDuration) * 100);
-
-          if (progressValue >= 100) {
-            isHolding = false;
-            isComplete = true;
-            setProgress(100);
-            holdButton.classList.remove("is-pressed");
-            statusText.innerText = "Success! Button Triggered!";
-            alert("Tap & Hold Completed!");
-            return;
-          }
-
-          holdAnimationFrame = requestAnimationFrame(animateHold);
-        }
-
-        holdAnimationFrame = requestAnimationFrame(animateHold);
+        animationFrameId = requestAnimationFrame(updateProgress);
       }
 
-      function cancelHold() {
-        if (!isHolding) return;
+      function updateProgress(now) {
+        const elapsedTime = now - holdStartTime;
+        const progress = Math.min((elapsedTime / holdDuration) * 100, 100);
 
-        cancelAnimationFrame(holdAnimationFrame);
-        isHolding = false;
-        holdButton.classList.remove("is-pressed");
+        drawProgress(progress);
 
-        if (!isComplete) {
-          setProgress(0);
-          statusText.innerText = "Hold cancelled";
+        if (progress === 100) {
+          animationFrameId = null;
+          holdButton.classList.remove("is-pressed");
+          statusText.textContent = "Success! Button Triggered!";
+          alert("Tap & Hold Completed!");
+          return;
         }
+
+        animationFrameId = requestAnimationFrame(updateProgress);
+      }
+
+      function resetHold() {
+        if (!animationFrameId) return;
+
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        holdButton.classList.remove("is-pressed");
+        drawProgress(0);
+        statusText.textContent = "Hold cancelled";
       }
 
       holdButton.addEventListener("pointerdown", startHold);
-      holdButton.addEventListener("pointerup", cancelHold);
-      holdButton.addEventListener("pointerleave", cancelHold);
-      holdButton.addEventListener("pointercancel", cancelHold);
+      holdButton.addEventListener("pointerup", resetHold);
+      holdButton.addEventListener("pointerleave", resetHold);
+      holdButton.addEventListener("pointercancel", resetHold);
     </script>
   </body>
 </html>
